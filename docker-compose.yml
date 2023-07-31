@@ -1,0 +1,34 @@
+version: '3'
+services:
+  test_fastapi:
+    build: .
+    command: [ "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "80" ]
+    volumes:
+      - ./app:/app
+    ports:
+      - 8001:80
+    depends_on:
+      - test_redis
+  test_worker:
+    build: .
+    command: celery -A celery_worker worker --loglevel=info -c 4
+    volumes:
+      - ./app:/app
+    depends_on:
+      - test_redis
+  flower:
+    build: .
+    command: celery flower
+    ports:
+      - 5000:5555
+    environment:
+      CELERY_BROKER_URL: redis://test_redis:6377
+      CELERY_RESULT_BACKEND: redis://test_redis
+    depends_on:
+      - test_worker
+      - test_redis
+  test_redis:
+    image: "redis:alpine"
+    command: [ "redis-server", "--bind", "test_redis", "--port", "6377" ]
+    ports:
+      - 6377:6379
